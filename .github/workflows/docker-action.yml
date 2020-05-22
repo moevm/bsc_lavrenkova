@@ -1,0 +1,36 @@
+name: Docker Image CI
+
+on:
+  pull_request:
+    types:
+      - labeled
+      - unlabeled
+      - synchronize
+      - opened
+      - edited
+      - ready_for_review
+      - reopened
+      - unlocked
+      
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+    env:
+      MongoDB__Host: mongo
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      PORT: 4444:80
+
+    steps:
+    - uses: lavrenkova/sw-auto@master
+    - name: Build the docker-compose stack
+      run: docker-compose -f SciencePaperAnalyzer/docker-compose.yml -f SciencePaperAnalyzer/docker-compose.ci.yml up -d
+    - name: Check running containers
+      run: docker ps -a
+    - name: Get files from PR
+      run: |
+        URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files"
+          FILES=$(curl -s -X GET -G $URL | jq -r '.[] | .patch')
+          echo $FILES
+          echo $(curl -d "@$FILES" -X POST http://localhost:/4444:80)
